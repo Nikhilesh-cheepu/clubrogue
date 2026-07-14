@@ -11,7 +11,11 @@ export async function fulfillRazorpayReservationPayment(params: {
   origin: string;
   cookie?: string;
 }): Promise<RazorpayFulfillResult> {
-  const { orderId, paymentId, origin, cookie } = params;
+  const { orderId, paymentId, cookie } = params;
+  const origin =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+    params.origin.replace(/\/$/, "");
+
 
   const payment = await prisma.reservationPayment.findUnique({
     where: { razorpayOrderId: orderId },

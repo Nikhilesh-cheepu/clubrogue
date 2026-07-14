@@ -455,7 +455,10 @@ export default function ClubRogueOutletPage({
               </div>
               <p className="text-xl font-semibold text-white">You&apos;re in</p>
               <p className="mt-1.5 text-sm" style={{ color: CLUB_ROGUE_THEME.textMuted }}>
-                Table confirmed — check WhatsApp
+                Payment received — WhatsApp confirmation on the way
+              </p>
+              <p className="mt-3 text-xs leading-relaxed" style={{ color: CLUB_ROGUE_THEME.textDim }}>
+                ₹2,000 cover per person at entry · redeemable on F&amp;B
               </p>
               <button
                 type="button"

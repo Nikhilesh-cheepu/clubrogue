@@ -17,10 +17,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Payment verification failed." }, { status: 400 });
     }
 
+    const siteOrigin =
+      process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || req.nextUrl.origin;
+
     const result = await fulfillRazorpayReservationPayment({
       orderId,
       paymentId,
-      origin: req.nextUrl.origin,
+      origin: siteOrigin,
       cookie: req.headers.get("cookie") || "",
     });
 
