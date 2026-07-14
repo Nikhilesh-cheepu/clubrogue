@@ -835,7 +835,7 @@ export default function ClubRogueOutletPage({
 
       {galleryOpen && (
         <GalleryModal
-          images={venue.galleryImages}
+          images={venue.galleryImages.filter((src) => !isPlaceholderImage(src))}
           brandName={venueName}
           initialIndex={galleryIndex}
           onClose={() => setGalleryOpen(false)}
