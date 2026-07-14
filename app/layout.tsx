@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Club Rogue - Choose Your Rogue",
-  description: "Three locations. One wild night.",
+  title: "Club Rogue | Hyderabad",
+  description: "Book your table at Club Rogue — Gachibowli, Kondapur & Jubilee Hills.",
 };
 
 export default function RootLayout({

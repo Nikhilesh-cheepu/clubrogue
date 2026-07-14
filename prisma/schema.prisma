@@ -1,0 +1,121 @@
+// Minimal Prisma schema for a Club Rogue–only site.
+// Copy into prisma/schema.prisma and run: npx prisma migrate dev
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Venue {
+  id             String   @id @default(cuid())
+  brandId        String   @unique
+  name           String
+  shortName      String
+  address        String
+  mapUrl         String?
+  contactPhone   String?
+  contactNumbers Json?
+  sectionVisibility Json?
+  outletUi       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  images       VenueImage[]
+  offers       VenueOffer[]
+  reservations Reservation[]
+
+  @@index([brandId])
+}
+
+model VenueOffer {
+  id              String   @id @default(cuid())
+  venueId         String
+  imageUrl        String
+  title           String?
+  description     String?
+  eventDate       String?
+  eventContinuous Boolean  @default(false)
+  entryLabel      String?
+  capacityText    String?
+  endDate         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+}
+
+model VenueImage {
+  id        String    @id @default(cuid())
+  venueId   String
+  url       String
+  type      ImageType
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, type])
+  @@index([venueId, type, order])
+}
+
+enum ImageType {
+  COVER
+  GALLERY
+}
+
+model Reservation {
+  id                String            @id @default(cuid())
+  venueId           String
+  brandId           String
+  brandName         String
+  fullName          String
+  contactNumber     String
+  numberOfMen       String
+  numberOfWomen     String
+  numberOfCouples   String
+  date              String
+  timeSlot          String
+  notes             String?
+  selectedDiscounts String?
+  status            ReservationStatus @default(CONFIRMED)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+  @@index([brandId])
+  @@index([date])
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// Razorpay confirmation fee (₹50 × guests by default)
+model ReservationPayment {
+  id                String   @id @default(cuid())
+  brandId           String
+  razorpayOrderId   String   @unique
+  razorpayPaymentId String?
+  amountPaise       Int
+  status            String   @default("CREATED") // CREATED | PAID
+  bookingDraft      Json
+  reservationId     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([brandId])
+  @@index([status])
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
