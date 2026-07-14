@@ -32,7 +32,8 @@ const OUTLETS = [
   },
 ] as const;
 
-const LOGO = "/logos/club-rogue.png";
+/** Empty until real event/gallery art is uploaded — never use the brand logo as cover art. */
+const PLACEHOLDER_IMAGE = "";
 
 async function seedOutlet(outlet: (typeof OUTLETS)[number]) {
   const venue = await prisma.venue.upsert({
@@ -56,13 +57,24 @@ async function seedOutlet(outlet: (typeof OUTLETS)[number]) {
     },
   });
 
+  // Remove logo-as-gallery leftovers that crop badly in the landing UI
+  await prisma.venueImage.deleteMany({
+    where: {
+      venueId: venue.id,
+      OR: [
+        { url: "/logos/club-rogue.png" },
+        { url: { contains: "/logos/club-rogue" } },
+      ],
+    },
+  });
+
   const existingOffers = await prisma.venueOffer.count({ where: { venueId: venue.id } });
   if (existingOffers === 0) {
     await prisma.venueOffer.createMany({
       data: [
         {
           venueId: venue.id,
-          imageUrl: LOGO,
+          imageUrl: PLACEHOLDER_IMAGE,
           title: "Ladies Night",
           description: "Every Wednesday — premium club night",
           eventContinuous: true,
@@ -70,7 +82,7 @@ async function seedOutlet(outlet: (typeof OUTLETS)[number]) {
         },
         {
           venueId: venue.id,
-          imageUrl: LOGO,
+          imageUrl: PLACEHOLDER_IMAGE,
           title: "Weekend Club Night",
           description: "Fri–Sat energy — book your table",
           eventContinuous: true,
@@ -78,15 +90,16 @@ async function seedOutlet(outlet: (typeof OUTLETS)[number]) {
         },
       ],
     });
-  }
-
-  const existingImages = await prisma.venueImage.count({ where: { venueId: venue.id } });
-  if (existingImages === 0) {
-    await prisma.venueImage.createMany({
-      data: [
-        { venueId: venue.id, url: LOGO, type: "GALLERY", order: 0 },
-        { venueId: venue.id, url: LOGO, type: "COVER", order: 0 },
-      ],
+  } else {
+    await prisma.venueOffer.updateMany({
+      where: {
+        venueId: venue.id,
+        OR: [
+          { imageUrl: "/logos/club-rogue.png" },
+          { imageUrl: { contains: "/logos/club-rogue" } },
+        ],
+      },
+      data: { imageUrl: PLACEHOLDER_IMAGE },
     });
   }
 

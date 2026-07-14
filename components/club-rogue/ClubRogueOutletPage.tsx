@@ -40,6 +40,16 @@ const LOGO = "/logos/club-rogue.png";
 const DEFAULT_MAP = "https://maps.app.goo.gl/wD2TKLaW9v5gFnmj6";
 const HOOK_ROTATE_MS = 15000;
 
+function isPlaceholderImage(url: string | null | undefined): boolean {
+  if (!url?.trim()) return true;
+  const normalized = url.trim().split("?")[0];
+  return (
+    normalized === LOGO ||
+    normalized.endsWith("/logos/club-rogue.png") ||
+    normalized.includes("/logos/club-rogue")
+  );
+}
+
 type Offer = {
   id: string;
   imageUrl: string;
@@ -608,21 +618,36 @@ export default function ClubRogueOutletPage({
             >
               Tonight
             </p>
-            <div className="flex justify-center gap-2">
+            <div className="flex flex-wrap justify-center gap-2">
               {venue.offers.slice(0, 4).map((o) => {
                 const sel = selectedEventId === o.id;
+                const usePhoto = !isPlaceholderImage(o.imageUrl);
                 return (
                   <button
                     key={o.id}
                     type="button"
                     onClick={() => selectEvent(o.id)}
-                    className="relative h-[4.5rem] w-11 shrink-0 overflow-hidden rounded-xl transition-all"
+                    className="relative flex min-h-[3.25rem] max-w-[9.5rem] shrink-0 items-end overflow-hidden rounded-2xl border px-3 py-2.5 text-left transition-all"
                     style={{
-                      boxShadow: sel ? `0 0 0 2px ${CLUB_ROGUE_THEME.orange}` : "none",
-                      opacity: sel ? 1 : 0.55,
+                      borderColor: sel ? CLUB_ROGUE_THEME.orange : CLUB_ROGUE_THEME.border,
+                      background: sel ? "rgba(249, 115, 22, 0.14)" : CLUB_ROGUE_THEME.surface,
+                      boxShadow: sel ? `0 0 0 1px ${CLUB_ROGUE_THEME.orange}` : "none",
+                      opacity: sel ? 1 : 0.8,
                     }}
                   >
-                    <Image src={o.imageUrl} alt="" fill className="object-cover" sizes="44px" unoptimized />
+                    {usePhoto ? (
+                      <Image
+                        src={o.imageUrl}
+                        alt=""
+                        fill
+                        className="object-cover opacity-40"
+                        sizes="152px"
+                        unoptimized
+                      />
+                    ) : null}
+                    <span className="relative z-[1] text-[11px] font-semibold leading-snug text-white/90">
+                      {o.title?.trim() || "Tonight"}
+                    </span>
                   </button>
                 );
               })}
@@ -630,24 +655,27 @@ export default function ClubRogueOutletPage({
           </section>
         )}
 
-        {/* Gallery */}
-        {venue.galleryImages.length > 0 && (
+        {/* Gallery — skip logo placeholders (they crop badly in tall frames) */}
+        {venue.galleryImages.filter((src) => !isPlaceholderImage(src)).length > 0 && (
           <section className="mt-8">
             <div className="flex justify-center gap-2">
-              {venue.galleryImages.slice(0, 3).map((src, i) => (
-                <button
-                  key={src}
-                  type="button"
-                  onClick={() => {
-                    setGalleryIndex(i);
-                    setGalleryOpen(true);
-                  }}
-                  className="relative h-44 w-[4.5rem] overflow-hidden rounded-2xl transition-transform active:scale-[0.98]"
-                  style={{ opacity: 0.85 }}
-                >
-                  <Image src={src} alt="" fill className="object-cover" sizes="72px" />
-                </button>
-              ))}
+              {venue.galleryImages
+                .filter((src) => !isPlaceholderImage(src))
+                .slice(0, 3)
+                .map((src, i) => (
+                  <button
+                    key={src}
+                    type="button"
+                    onClick={() => {
+                      setGalleryIndex(i);
+                      setGalleryOpen(true);
+                    }}
+                    className="relative h-44 w-[4.5rem] overflow-hidden rounded-2xl transition-transform active:scale-[0.98]"
+                    style={{ opacity: 0.85 }}
+                  >
+                    <Image src={src} alt="" fill className="object-cover" sizes="72px" />
+                  </button>
+                ))}
             </div>
           </section>
         )}
