@@ -1,16 +1,16 @@
-const DEFAULT_NUMBER = "7013884485";
+const DEFAULT_NUMBER = "7287984440";
 
 export const OUTLET_CONTACTS: Record<string, { phone: string; whatsappMessage: string }> = {
   "club-rogue-gachibowli": {
-    phone: "8328576564",
+    phone: "7287984440",
     whatsappMessage: `Hi! I'd like to book a table at Club Rogue Gachibowli. I understand there's a mandatory ₹2000 cover charge — fully redeemable at the venue.`,
   },
   "club-rogue-kondapur": {
-    phone: DEFAULT_NUMBER, // update when dedicated number is set
+    phone: "7287984440",
     whatsappMessage: `Hi! I'd like to book a table at Club Rogue Kondapur. I understand there's a mandatory ₹2000 cover charge — fully redeemable at the venue.`,
   },
   "club-rogue-jubilee-hills": {
-    phone: DEFAULT_NUMBER, // update when dedicated number is set
+    phone: "7287984441",
     whatsappMessage: `Hi! I'd like to book a table at Club Rogue Jubilee Hills. I understand there's a mandatory ₹2000 cover charge — fully redeemable at the venue.`,
   },
 };

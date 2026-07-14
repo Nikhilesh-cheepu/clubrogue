@@ -28,7 +28,7 @@ export type VenuePayload = {
   };
 };
 
-const DEFAULT_MAP_URL = "https://maps.app.goo.gl/wD2TKLaW9v5gFnmj6";
+const DEFAULT_MAP_URL = "https://maps.app.goo.gl/k9PYAFMX8ak6YS2w7?g_st=ic";
 const defaultLocation = { address: "", mapUrl: DEFAULT_MAP_URL };
 const defaultSectionVisibility = { menu: true, photos: true, spots: true };
 const defaultOutletUi = {};

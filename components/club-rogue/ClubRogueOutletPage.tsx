@@ -38,7 +38,7 @@ import type { VenuePayload } from "@/lib/venue-data";
 const GalleryModal = dynamic(() => import("@/components/GalleryModal"));
 
 const LOGO = "/logos/club-rogue.png";
-const DEFAULT_MAP = "https://maps.app.goo.gl/wD2TKLaW9v5gFnmj6";
+const DEFAULT_MAP = "https://maps.app.goo.gl/k9PYAFMX8ak6YS2w7?g_st=ic";
 const HOOK_ROTATE_MS = 15000;
 
 function isPlaceholderImage(url: string | null | undefined): boolean {
