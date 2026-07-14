@@ -349,13 +349,13 @@ export async function POST(request: NextRequest) {
 
     const interaktApiKey = process.env.INTERAKT_API_KEY?.trim();
     const defaultTemplateName =
-      process.env.INTERAKT_BOOKING_TEMPLATE_NAME?.trim() || "bassik_website";
+      process.env.INTERAKT_BOOKING_TEMPLATE_NAME?.trim() || "club_rogue_confirmed";
     const defaultLanguageCode =
       process.env.INTERAKT_BOOKING_TEMPLATE_LANGUAGE_CODE?.trim() || "en";
     const eventTemplateName =
-      process.env.INTERAKT_EVENT_TEMPLATE_NAME?.trim() || "bassik_website_events";
+      process.env.INTERAKT_EVENT_TEMPLATE_NAME?.trim() || defaultTemplateName;
     const eventLanguageCode =
-      process.env.INTERAKT_EVENT_TEMPLATE_LANGUAGE_CODE?.trim() || "en";
+      process.env.INTERAKT_EVENT_TEMPLATE_LANGUAGE_CODE?.trim() || defaultLanguageCode;
     const interaktTemplateName = isEventBooking ? eventTemplateName : defaultTemplateName;
     const interaktLanguageCode = isEventBooking ? eventLanguageCode : defaultLanguageCode;
 
@@ -365,26 +365,10 @@ export async function POST(request: NextRequest) {
       Boolean(staffNotifyRaw) &&
       /^\d{10}$/.test(staffNotifyPhone10) &&
       staffNotifyPhone10 !== contactNumber;
-    const staffBookingTemplateName =
-      process.env.INTERAKT_STAFF_BOOKING_TEMPLATE_NAME?.trim() || "bassik_website_outlet";
-    const staffBookingLanguageCode =
-      process.env.INTERAKT_STAFF_BOOKING_TEMPLATE_LANGUAGE_CODE?.trim() || defaultLanguageCode;
-    const staffEventTemplateName =
-      process.env.INTERAKT_STAFF_EVENT_TEMPLATE_NAME?.trim() || "bassik_events_outlet";
-    const staffEventLanguageCode =
-      process.env.INTERAKT_STAFF_EVENT_TEMPLATE_LANGUAGE_CODE?.trim() || eventLanguageCode;
-    const staffTemplateName = isEventBooking ? staffEventTemplateName : staffBookingTemplateName;
-    const staffLanguageCode = isEventBooking ? staffEventLanguageCode : staffBookingLanguageCode;
-
-    const genreLabelForNotes =
-      brandId === CLUB_ROGUE_GACHIBOWLI_ID && nightGenre
-        ? nightGenre === "tollywood"
-          ? "Tollywood"
-          : "Bollywood"
-        : "";
-    const notesBodyForTemplate = notesSectionFromUser || userNotesTrimmed || "";
-    const noteValue =
-      [genreLabelForNotes, notesBodyForTemplate].filter(Boolean).join(" · ") || "-";
+    const staffTemplateName =
+      process.env.INTERAKT_STAFF_BOOKING_TEMPLATE_NAME?.trim() || interaktTemplateName;
+    const staffLanguageCode =
+      process.env.INTERAKT_STAFF_BOOKING_TEMPLATE_LANGUAGE_CODE?.trim() || interaktLanguageCode;
 
     if (!shouldTriggerInterakt) {
       console.log("[RESERVATION API] Duplicate booking detected; skipping WhatsApp trigger.");
@@ -394,28 +378,8 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     } else {
-      const bodyValues = isEventBooking
-        ? [
-            outletNameForTemplate,
-            normalizedFullName,
-            contactNumber,
-            eventNameForTemplate,
-            eventDateForTemplate,
-            timeLabel,
-            String(totalGuests),
-            "CONFIRMED",
-          ]
-        : [
-            outletNameForTemplate,
-            normalizedFullName,
-            contactNumber,
-            dateShort,
-            timeLabel,
-            noteValue,
-            offerText,
-            String(totalGuests),
-            "CONFIRMED",
-          ];
+      // Template body vars: {{1}} name, {{2}} mobile
+      const bodyValues = [normalizedFullName, contactNumber];
       const customerSend = await sendInteraktTemplateMessage({
         apiKey: interaktApiKey,
         phoneNumber10: contactNumber,
