@@ -12,6 +12,7 @@ import {
   CLUB_ROGUE_FEE_BREAKDOWN_LABELS,
   CLUB_ROGUE_GACHIBOWLI_ID,
   CLUB_ROGUE_BRAND_IDS,
+  clubRogueAllowsNightGenreChoice,
   clubRogueChatVenueName,
   getClubRogueCustomerFeeBreakdown,
 } from "@/lib/club-rogue";
@@ -247,7 +248,7 @@ export default function ClubRogueOutletPage({
     const normalizedPhone = phone.replace(/\D/g, "").slice(0, 10);
     if (!name.trim()) return "Add your name.";
     if (!/^\d{10}$/.test(normalizedPhone)) return "Enter a 10-digit mobile number.";
-    if (brandId === CLUB_ROGUE_GACHIBOWLI_ID && nightGenre !== "tollywood" && nightGenre !== "bollywood") {
+    if (clubRogueAllowsNightGenreChoice(brandId) && nightGenre !== "tollywood" && nightGenre !== "bollywood") {
       return "Pick Tollywood or Bollywood.";
     }
     if (isEventSlotInPast(bookDate, bookTime)) return "That slot's gone — pick another time.";
@@ -275,7 +276,9 @@ export default function ClubRogueOutletPage({
       brandId,
       brandName: brand.name,
       coverChargeAcknowledged: acknowledged,
-      ...(brandId === CLUB_ROGUE_GACHIBOWLI_ID && nightGenre ? { bookingNightGenre: nightGenre } : {}),
+      bookingNightGenre: clubRogueAllowsNightGenreChoice(brandId)
+        ? nightGenre || "tollywood"
+        : "tollywood",
     };
   };
 
@@ -547,7 +550,7 @@ export default function ClubRogueOutletPage({
                 </button>
               </div>
 
-              {brandId === CLUB_ROGUE_GACHIBOWLI_ID && (
+              {clubRogueAllowsNightGenreChoice(brandId) ? (
                 <div className="grid grid-cols-2 gap-2">
                   {(["tollywood", "bollywood"] as const).map((g) => (
                     <button
@@ -564,6 +567,17 @@ export default function ClubRogueOutletPage({
                       {g}
                     </button>
                   ))}
+                </div>
+              ) : (
+                <div
+                  className="rounded-2xl border px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider"
+                  style={{
+                    borderColor: CLUB_ROGUE_THEME.border,
+                    background: CLUB_ROGUE_THEME.surface,
+                    color: CLUB_ROGUE_THEME.textMuted,
+                  }}
+                >
+                  Tollywood night
                 </div>
               )}
 

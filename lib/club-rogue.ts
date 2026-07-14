@@ -8,6 +8,31 @@ export const CLUB_ROGUE_BRAND_IDS = [
 
 export const CLUB_ROGUE_GACHIBOWLI_ID = "club-rogue-gachibowli" as const;
 
+/** Gachibowli: guest picks Tollywood or Bollywood. Other outlets: Tollywood only. */
+export function clubRogueAllowsNightGenreChoice(brandId: string): boolean {
+  return brandId === CLUB_ROGUE_GACHIBOWLI_ID;
+}
+
+export function resolveClubRogueNightGenre(
+  brandId: string,
+  bookingNightGenre: unknown
+): "tollywood" | "bollywood" | null {
+  if (!isClubRogueBrand(brandId)) return null;
+  if (clubRogueAllowsNightGenreChoice(brandId)) {
+    const raw =
+      typeof bookingNightGenre === "string" ? bookingNightGenre.toLowerCase().trim() : "";
+    if (raw === "tollywood" || raw === "bollywood") return raw;
+    return null;
+  }
+  return "tollywood";
+}
+
+export function clubRogueNightGenreLabel(genre: "tollywood" | "bollywood" | null): string {
+  if (genre === "bollywood") return "Bollywood night";
+  if (genre === "tollywood") return "Tollywood night";
+  return "—";
+}
+
 /** Full venue name for guest-facing chat — never shorten to locality only. */
 export const CLUB_ROGUE_CHAT_VENUE_NAMES: Record<
   (typeof CLUB_ROGUE_BRAND_IDS)[number],

@@ -4,7 +4,9 @@ import { getOutletLabelForReservation } from "@/lib/brands";
 import {
   CLUB_ROGUE_GACHIBOWLI_ID,
   CLUB_ROGUE_RESERVATION_FEE_INR,
+  clubRogueNightGenreLabel,
   isClubRogueBrand,
+  resolveClubRogueNightGenre,
 } from "@/lib/club-rogue";
 import { localYmdTimeMs } from "@/lib/local-date";
 import { clubRogueBookingRequiresPayment } from "@/lib/razorpay";
@@ -224,18 +226,15 @@ export async function POST(request: NextRequest) {
     }
 
     let nightGenre: "tollywood" | "bollywood" | null = null;
-    if (brandId === CLUB_ROGUE_GACHIBOWLI_ID) {
-      const raw =
-        typeof bookingNightGenre === "string"
-          ? bookingNightGenre.toLowerCase().trim()
-          : "";
-      if (raw !== "tollywood" && raw !== "bollywood") {
+    if (isClubRogueBrand(brandId)) {
+      nightGenre = resolveClubRogueNightGenre(brandId, bookingNightGenre);
+      if (brandId === CLUB_ROGUE_GACHIBOWLI_ID && !nightGenre) {
         return NextResponse.json(
           { error: "Please select Tollywood night or Bollywood night." },
           { status: 400 }
         );
       }
-      nightGenre = raw;
+      if (!nightGenre) nightGenre = "tollywood";
     }
 
     const outletDisplayName = getOutletLabelForReservation(
@@ -258,8 +257,8 @@ export async function POST(request: NextRequest) {
       typeof eventId === "string" && eventId.trim() ? eventId.trim() : null;
     const isEventBooking = Boolean(eventIdNormalized);
     const dbNotesParts: string[] = [];
-    if (brandId === CLUB_ROGUE_GACHIBOWLI_ID && nightGenre) {
-      dbNotesParts.push(nightGenre === "tollywood" ? "Tollywood night" : "Bollywood night");
+    if (isClubRogueBrand(brandId) && nightGenre) {
+      dbNotesParts.push(clubRogueNightGenreLabel(nightGenre));
     }
     if (userNotesTrimmed) dbNotesParts.push(userNotesTrimmed);
     const notesNormalized =
@@ -378,18 +377,12 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     } else {
-      // Template: {{1}} name, {{2}} outlet, {{3}} mobile, {{4}} night (Tollywood/Bollywood/—)
-      const nightForTemplate =
-        brandId === CLUB_ROGUE_GACHIBOWLI_ID && nightGenre
-          ? nightGenre === "tollywood"
-            ? "Tollywood night"
-            : "Bollywood night"
-          : "—";
+      // Template: {{1}} name, {{2}} outlet, {{3}} mobile, {{4}} night
       const bodyValues = [
         normalizedFullName,
         outletNameForTemplate,
         contactNumber,
-        nightForTemplate,
+        clubRogueNightGenreLabel(nightGenre),
       ];
       const customerSend = await sendInteraktTemplateMessage({
         apiKey: interaktApiKey,
