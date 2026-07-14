@@ -694,27 +694,40 @@ export default function ClubRogueOutletPage({
           </section>
         )}
 
-        <footer className="mt-10 flex justify-center gap-5 text-[11px]" style={{ color: CLUB_ROGUE_THEME.textDim }}>
-          <a href={venue.mapUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white/55">
-            Locate
-          </a>
-          <span aria-hidden>·</span>
-          <a href={waUrl} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-300/80">
-            WhatsApp
-          </a>
-          {brand.instagramUrls[0] && brand.instagramUrls[0] !== "#" ? (
-            <>
-              <span aria-hidden>·</span>
-              <a
-                href={brand.instagramUrls[0]}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-white/55"
-              >
-                Instagram
-              </a>
-            </>
-          ) : null}
+        <footer className="mt-10 pb-2 text-center">
+          <div className="flex justify-center gap-5 text-[11px]" style={{ color: CLUB_ROGUE_THEME.textDim }}>
+            <a href={venue.mapUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white/55">
+              Locate
+            </a>
+            <span aria-hidden>·</span>
+            <a href={waUrl} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-300/80">
+              WhatsApp
+            </a>
+            {brand.instagramUrls[0] && brand.instagramUrls[0] !== "#" ? (
+              <>
+                <span aria-hidden>·</span>
+                <a
+                  href={brand.instagramUrls[0]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white/55"
+                >
+                  Instagram
+                </a>
+              </>
+            ) : null}
+          </div>
+          <p className="mt-5 text-[10px] tracking-wide" style={{ color: "rgba(214, 211, 209, 0.35)" }}>
+            Marketing partner{" "}
+            <a
+              href="https://bassik.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-white/15 underline-offset-2 transition-colors hover:text-white/55 hover:decoration-white/30"
+            >
+              bassik.in
+            </a>
+          </p>
         </footer>
       </div>
 
