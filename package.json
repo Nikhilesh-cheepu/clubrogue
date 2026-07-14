@@ -3,15 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "prisma generate && node scripts/run-prisma.cjs migrate deploy && next build",
+    "build": "node scripts/prisma-generate.cjs && node scripts/run-prisma.cjs migrate deploy && next build",
     "dev": "next dev",
     "start": "next start",
     "lint": "next lint",
-    "db:generate": "prisma generate",
+    "db:generate": "node scripts/prisma-generate.cjs",
     "db:migrate": "node scripts/run-prisma.cjs migrate dev",
     "db:push": "node scripts/run-prisma.cjs db push",
     "db:seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "node scripts/prisma-generate.cjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
