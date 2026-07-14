@@ -626,52 +626,6 @@ export default function ClubRogueOutletPage({
           )}
         </section>
 
-        {/* Tonight */}
-        {!loading && venue.offers.length > 0 && (
-          <section className="mt-10">
-            <p
-              className="mb-3 text-center text-[10px] font-medium uppercase tracking-[0.25em]"
-              style={{ color: CLUB_ROGUE_THEME.textDim }}
-            >
-              Tonight
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {venue.offers.slice(0, 4).map((o) => {
-                const sel = selectedEventId === o.id;
-                const usePhoto = !isPlaceholderImage(o.imageUrl);
-                return (
-                  <button
-                    key={o.id}
-                    type="button"
-                    onClick={() => selectEvent(o.id)}
-                    className="relative flex min-h-[3.25rem] max-w-[9.5rem] shrink-0 items-end overflow-hidden rounded-2xl border px-3 py-2.5 text-left transition-all"
-                    style={{
-                      borderColor: sel ? CLUB_ROGUE_THEME.orange : CLUB_ROGUE_THEME.border,
-                      background: sel ? "rgba(249, 115, 22, 0.14)" : CLUB_ROGUE_THEME.surface,
-                      boxShadow: sel ? `0 0 0 1px ${CLUB_ROGUE_THEME.orange}` : "none",
-                      opacity: sel ? 1 : 0.8,
-                    }}
-                  >
-                    {usePhoto ? (
-                      <Image
-                        src={o.imageUrl}
-                        alt=""
-                        fill
-                        className="object-cover opacity-40"
-                        sizes="152px"
-                        unoptimized
-                      />
-                    ) : null}
-                    <span className="relative z-[1] text-[11px] font-semibold leading-snug text-white/90">
-                      {o.title?.trim() || "Tonight"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
         {/* Gallery — skip logo placeholders (they crop badly in tall frames) */}
         {venue.galleryImages.filter((src) => !isPlaceholderImage(src)).length > 0 && (
           <section className="mt-8">
