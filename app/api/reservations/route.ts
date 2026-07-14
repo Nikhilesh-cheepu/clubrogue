@@ -378,8 +378,19 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     } else {
-      // Template body vars: {{1}} name, {{2}} outlet, {{3}} mobile
-      const bodyValues = [normalizedFullName, outletNameForTemplate, contactNumber];
+      // Template: {{1}} name, {{2}} outlet, {{3}} mobile, {{4}} night (Tollywood/Bollywood/—)
+      const nightForTemplate =
+        brandId === CLUB_ROGUE_GACHIBOWLI_ID && nightGenre
+          ? nightGenre === "tollywood"
+            ? "Tollywood night"
+            : "Bollywood night"
+          : "—";
+      const bodyValues = [
+        normalizedFullName,
+        outletNameForTemplate,
+        contactNumber,
+        nightForTemplate,
+      ];
       const customerSend = await sendInteraktTemplateMessage({
         apiKey: interaktApiKey,
         phoneNumber10: contactNumber,
