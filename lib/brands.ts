@@ -1,5 +1,7 @@
 /** Club Rogue–only brand catalog for a standalone site. */
 
+import { CLUB_ROGUE_OUTLETS } from "@/lib/outlets";
+
 export type Brand = {
   id: string;
   name: string;
@@ -13,44 +15,24 @@ export type Brand = {
   logoPath?: string;
 };
 
-export const BRANDS: Brand[] = [
-  {
-    id: "club-rogue-gachibowli",
-    name: "Club Rogue Gachibowli",
-    shortName: "Club Rogue Gachibowli",
-    accentColor: "#F97316",
-    exploreUrl: "#",
-    instagramUrls: ["https://www.instagram.com/clubrogue.gachibowli/"],
-    websiteUrl: "/",
-    description: "Club nights • Signature cocktails",
-    tag: "Club",
-    logoPath: "/logos/club-rogue.png",
-  },
-  {
-    id: "club-rogue-kondapur",
-    name: "Club Rogue Kondapur",
-    shortName: "Club Rogue Kondapur",
-    accentColor: "#EC4899",
-    exploreUrl: "#",
-    instagramUrls: ["https://www.instagram.com/clubrogue.kondapur/"],
-    websiteUrl: "/",
-    description: "Club nights • Signature cocktails",
-    tag: "Club",
-    logoPath: "/logos/club-rogue.png",
-  },
-  {
-    id: "club-rogue-jubilee-hills",
-    name: "Club Rogue Jubilee Hills",
-    shortName: "Club Rogue Jubilee Hills",
-    accentColor: "#A855F7",
-    exploreUrl: "#",
-    instagramUrls: ["https://www.instagram.com/clubrogue.jubileehills/"],
-    websiteUrl: "/",
-    description: "Club nights • Signature cocktails",
-    tag: "Club",
-    logoPath: "/logos/club-rogue.png",
-  },
-];
+const ACCENTS: Record<string, string> = {
+  "club-rogue-gachibowli": "#F97316",
+  "club-rogue-kondapur": "#EC4899",
+  "club-rogue-jubilee-hills": "#A855F7",
+};
+
+export const BRANDS: Brand[] = CLUB_ROGUE_OUTLETS.map((o) => ({
+  id: o.brandId,
+  name: o.name,
+  shortName: o.name,
+  accentColor: ACCENTS[o.brandId] ?? "#F97316",
+  exploreUrl: "#",
+  instagramUrls: [o.instagramUrl],
+  websiteUrl: "/",
+  description: "Club nights • Signature cocktails",
+  tag: "Club",
+  logoPath: "/logos/club-rogue.png",
+}));
 
 export function findBrandBySlug(slug: string): Brand | undefined {
   return BRANDS.find((b) => b.id === slug);

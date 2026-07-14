@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { resolveDatabaseUrl } from "../lib/database-url";
+import { CLUB_ROGUE_OUTLETS } from "../lib/outlets";
 import fs from "fs";
 import path from "path";
 
@@ -32,32 +33,15 @@ const prisma = new PrismaClient({
   datasources: databaseUrl ? { db: { url: databaseUrl } } : undefined,
 });
 
-const OUTLETS = [
-  {
-    brandId: "club-rogue-gachibowli",
-    name: "Club Rogue Gachibowli",
-    shortName: "Club Rogue Gachibowli",
-    address: "Gachibowli, Hyderabad",
-    mapUrl: "https://maps.app.goo.gl/k9PYAFMX8ak6YS2w7?g_st=ic",
-    contactPhone: "7287984440",
-  },
-  {
-    brandId: "club-rogue-kondapur",
-    name: "Club Rogue Kondapur",
-    shortName: "Club Rogue Kondapur",
-    address: "Kondapur, Hyderabad",
-    mapUrl: "https://maps.app.goo.gl/9vyRjWjPiZZk8CqQ9",
-    contactPhone: "7287984440",
-  },
-  {
-    brandId: "club-rogue-jubilee-hills",
-    name: "Club Rogue Jubilee Hills",
-    shortName: "Club Rogue Jubilee Hills",
-    address: "Jubilee Hills, Hyderabad",
-    mapUrl: "https://maps.app.goo.gl/mrRyovVrA7s2XaMP8",
-    contactPhone: "7287984441",
-  },
-] as const;
+const OUTLETS = CLUB_ROGUE_OUTLETS.map((o) => ({
+  brandId: o.brandId,
+  name: o.name,
+  shortName: o.name,
+  address: o.address,
+  mapUrl: o.mapUrl,
+  contactPhone: o.phone,
+}));
+
 
 /** Empty until real event/gallery art is uploaded — never use the brand logo as cover art. */
 const PLACEHOLDER_IMAGE = "";

@@ -11,32 +11,32 @@ const nextConfig = {
       {
         source: "/venue/gachibowli",
         destination: "/club-rogue-gachibowli",
-        permanent: false,
+        permanent: true,
       },
       {
         source: "/venue/gachibowli/:path*",
         destination: "/club-rogue-gachibowli",
-        permanent: false,
+        permanent: true,
       },
       {
         source: "/venue/kondapur",
         destination: "/club-rogue-kondapur",
-        permanent: false,
+        permanent: true,
       },
       {
         source: "/venue/kondapur/:path*",
         destination: "/club-rogue-kondapur",
-        permanent: false,
+        permanent: true,
       },
       {
         source: "/venue/jubilee-hills",
         destination: "/club-rogue-jubilee-hills",
-        permanent: false,
+        permanent: true,
       },
       {
         source: "/venue/jubilee-hills/:path*",
         destination: "/club-rogue-jubilee-hills",
-        permanent: false,
+        permanent: true,
       },
     ];
   },
