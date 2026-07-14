@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && node scripts/run-prisma.cjs migrate deploy && next build",
     "dev": "next dev",
     "start": "next start",
     "lint": "next lint",
