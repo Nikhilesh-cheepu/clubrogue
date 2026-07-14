@@ -304,6 +304,36 @@ export default function ClubRogueOutletPage({
     setSubmitting(true);
     setConfirmError(null);
     const payload = buildPayload(true);
+    let activeOrderId: string | null = null;
+    let pollId: number | null = null;
+    let confirmed = false;
+
+    const markConfirmed = () => {
+      if (confirmed) return;
+      confirmed = true;
+      if (pollId != null) window.clearInterval(pollId);
+      setConfirmOpen(false);
+      setSuccess(true);
+      resetForm();
+    };
+
+    const tryConfirmOrder = async (orderId: string): Promise<boolean> => {
+      try {
+        const res = await fetch("/api/payments/razorpay/confirm-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          markConfirmed();
+          return true;
+        }
+      } catch {
+        /* keep polling */
+      }
+      return false;
+    };
 
     try {
       const orderRes = await fetch("/api/payments/razorpay/create-order", {
@@ -314,6 +344,9 @@ export default function ClubRogueOutletPage({
       const orderData = await orderRes.json().catch(() => ({}));
       if (!orderRes.ok) throw new Error(orderData.error || "Could not start payment");
 
+      activeOrderId = typeof orderData.orderId === "string" ? orderData.orderId : null;
+      if (!activeOrderId) throw new Error("Could not start payment");
+
       // Close our sheet and release scroll lock before Razorpay — body pin shifts its modal left on iOS.
       setConfirmOpen(false);
       blurActiveField();
@@ -323,10 +356,15 @@ export default function ClubRogueOutletPage({
       });
       await new Promise<void>((r) => window.setTimeout(r, 100));
 
+      // UPI / QR often debits before Checkout fires handler — poll Razorpay until confirmed.
+      pollId = window.setInterval(() => {
+        if (activeOrderId) void tryConfirmOrder(activeOrderId);
+      }, 2500);
+
       await openCheckout(
         {
           keyId: orderData.keyId,
-          orderId: orderData.orderId,
+          orderId: activeOrderId,
           amountPaise: orderData.amountPaise,
           name: venueName,
           description: `Table confirmation · ₹${fee.totalInr}`,
@@ -339,20 +377,38 @@ export default function ClubRogueOutletPage({
             body: JSON.stringify(payment),
           });
           const verifyData = await verifyRes.json().catch(() => ({}));
-          if (!verifyRes.ok) throw new Error(verifyData.error || "Payment verification failed");
-
-          setConfirmOpen(false);
-          setSuccess(true);
-          resetForm();
+          if (!verifyRes.ok) {
+            // Handler may race webhook — reconcile via order instead of failing hard.
+            if (activeOrderId && (await tryConfirmOrder(activeOrderId))) return;
+            throw new Error(verifyData.error || "Payment verification failed");
+          }
+          markConfirmed();
         }
       );
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Payment failed";
-      if (msg !== "Payment cancelled") {
+      // Modal dismissed after UPI pay — one last reconcile before showing cancel/error.
+      if (activeOrderId && (await tryConfirmOrder(activeOrderId))) {
+        /* success via poll */
+      } else if (msg !== "Payment cancelled") {
         setConfirmError(msg);
         setConfirmOpen(true);
+      } else if (activeOrderId) {
+        setConfirmError("If ₹ was deducted, wait a moment — we are confirming your booking.");
+        setConfirmOpen(true);
+        // Keep trying briefly after dismiss
+        for (let i = 0; i < 8 && !confirmed; i++) {
+          await new Promise((r) => window.setTimeout(r, 2000));
+          if (await tryConfirmOrder(activeOrderId)) break;
+        }
+        if (!confirmed) {
+          setConfirmError(
+            "Payment may still be processing. If you were charged, WhatsApp us with your number — we will confirm your table."
+          );
+        }
       }
     } finally {
+      if (pollId != null) window.clearInterval(pollId);
       setSubmitting(false);
     }
   };
