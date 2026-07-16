@@ -37,7 +37,7 @@ export function rootMetadata(): Metadata {
       locale: "en_IN",
       url: SITE_URL,
       siteName: SITE_NAME,
-      title: "Club Rogue Hyderabad | Book Your Table",
+      title: "Club Rogue | Hyderabad's Most Happening Club",
       description: SITE_TAGLINE,
       images: [
         {
@@ -50,7 +50,7 @@ export function rootMetadata(): Metadata {
     },
     twitter: {
       card: "summary",
-      title: "Club Rogue Hyderabad | Book Your Table",
+      title: "Club Rogue | Hyderabad's Most Happening Club",
       description: SITE_TAGLINE,
       images: ["/logos/club-rogue.png"],
     },
