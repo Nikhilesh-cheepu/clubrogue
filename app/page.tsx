@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import ClubRogueHomeLanding from "@/components/club-rogue/ClubRogueHomeLanding";
 
 export default function Home() {
-  redirect("/club-rogue-gachibowli");
+  return <ClubRogueHomeLanding />;
 }

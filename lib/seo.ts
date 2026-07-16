@@ -3,7 +3,7 @@ import { CLUB_ROGUE_OUTLETS, SITE_NAME, SITE_TAGLINE, SITE_URL, getOutletProfile
 
 export function rootMetadata(): Metadata {
   const title = {
-    default: "Club Rogue Hyderabad | Book Table — Gachibowli, Kondapur, Jubilee Hills",
+    default: "Club Rogue | Hyderabad's Most Happening Club — Book a Table",
     template: "%s | Club Rogue Hyderabad",
   };
 

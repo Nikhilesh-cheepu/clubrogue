@@ -58,4 +58,4 @@ export const SITE_URL =
 
 export const SITE_NAME = "Club Rogue";
 export const SITE_TAGLINE =
-  "Hyderabad's hottest club nights — book your table at Club Rogue Gachibowli, Kondapur & Jubilee Hills.";
+  "Hyderabad's most happening club — book your table at Club Rogue Gachibowli, Kondapur & Jubilee Hills.";
