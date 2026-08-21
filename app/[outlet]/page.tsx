@@ -1,6 +1,8 @@
 import ClubRogueOutletPage from "@/components/club-rogue/ClubRogueOutletPage";
+import ClubRogueWalkInLanding from "@/components/club-rogue/ClubRogueWalkInLanding";
 import { getVenuePayload } from "@/lib/venue-data";
 import { isClubRogueBrand, CLUB_ROGUE_BRAND_IDS } from "@/lib/club-rogue";
+import { isOnlineBookingEnabled } from "@/lib/feature-flags";
 import { outletMetadata, nightClubJsonLd } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -28,9 +30,24 @@ export default async function OutletPage({
   const outlet = params.outlet;
   if (!isClubRogueBrand(outlet)) notFound();
 
+  const jsonLd = nightClubJsonLd(outlet);
+
+  if (!isOnlineBookingEnabled()) {
+    return (
+      <>
+        {jsonLd ? (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
+        ) : null}
+        <ClubRogueWalkInLanding highlightBrandId={outlet} />
+      </>
+    );
+  }
+
   const data = await getVenuePayload(outlet);
   const eventId = searchParams?.event ?? null;
-  const jsonLd = nightClubJsonLd(outlet);
 
   return (
     <>
