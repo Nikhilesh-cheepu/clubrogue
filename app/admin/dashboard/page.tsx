@@ -116,6 +116,26 @@ export default function AdminDashboardPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <Link
+        href="/admin/scan"
+        className="mb-5 flex w-full items-center justify-between gap-3 rounded-2xl px-5 py-4 text-left shadow-lg shadow-orange-500/20"
+        style={{
+          background: `linear-gradient(135deg, ${CLUB_ROGUE_THEME.orangeLight}, ${CLUB_ROGUE_THEME.orange})`,
+        }}
+      >
+        <div>
+          <p className="font-[family-name:var(--font-display)] text-lg font-bold uppercase tracking-tight text-[#0c0604]">
+            Open QR scanner
+          </p>
+          <p className="text-xs font-medium text-[#0c0604]/90">
+            Door check-in · camera opens automatically
+          </p>
+        </div>
+        <span className="rounded-full bg-black/15 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-[#0c0604]">
+          Scan
+        </span>
+      </Link>
+
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="relative h-10 w-10 shrink-0">
@@ -133,13 +153,6 @@ export default function AdminDashboardPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/admin/scan"
-            className="rounded-full px-3 py-1.5 text-xs font-semibold text-[#0c0604]"
-            style={{ background: CLUB_ROGUE_THEME.orangeLight }}
-          >
-            Scan QR
-          </Link>
           <button
             type="button"
             onClick={() => setLive((v) => !v)}

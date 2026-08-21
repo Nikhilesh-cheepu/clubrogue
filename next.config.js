@@ -17,7 +17,8 @@ const nextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
+            // camera=(self) required for admin QR door scan
+            value: "camera=(self), microphone=(), geolocation=()",
           },
           {
             key: "Content-Security-Policy",
@@ -27,6 +28,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
+              "media-src 'self' blob:",
               "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com",
               "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
               "base-uri 'self'",

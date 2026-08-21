@@ -14,7 +14,7 @@ export default function AdminLoginPage() {
   useEffect(() => {
     fetch("/api/admin/me")
       .then((r) => {
-        if (r.ok) router.replace("/admin/dashboard");
+        if (r.ok) router.replace("/admin/scan");
       })
       .catch(() => {});
   }, [router]);
@@ -34,7 +34,7 @@ export default function AdminLoginPage() {
         setError(typeof data.error === "string" ? data.error : "Login failed.");
         return;
       }
-      router.replace("/admin/dashboard");
+      router.replace("/admin/scan");
     } catch {
       setError("Network error. Try again.");
     } finally {
@@ -49,10 +49,10 @@ export default function AdminLoginPage() {
           <Image src="/logos/club-rogue.png" alt="Club Rogue" fill className="object-contain" />
         </div>
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold uppercase tracking-tight">
-          Bookings admin
+          Door admin
         </h1>
         <p className="mt-2 text-sm" style={{ color: CLUB_ROGUE_THEME.textMuted }}>
-          Enter the staff passcode to see live bookings.
+          Passcode opens the QR scanner for check-in.
         </p>
       </div>
 
@@ -84,7 +84,7 @@ export default function AdminLoginPage() {
             background: `linear-gradient(135deg, ${CLUB_ROGUE_THEME.orangeLight}, ${CLUB_ROGUE_THEME.orange})`,
           }}
         >
-          {loading ? "Checking…" : "Open dashboard"}
+          {loading ? "Checking…" : "Open scanner"}
         </button>
       </form>
     </main>
