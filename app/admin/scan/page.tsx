@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
+import AdminNav from "@/components/club-rogue/AdminNav";
 import { CLUB_ROGUE_THEME } from "@/lib/club-rogue-landing";
 
 type ValidateResult = {
@@ -186,22 +186,15 @@ export default function AdminScanPage() {
 
   return (
     <main className="mx-auto max-w-lg px-4 pb-10 pt-4 sm:px-6">
-      <header className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold uppercase tracking-tight text-white">
-            Scan ticket
-          </h1>
-          <p className="mt-0.5 text-xs" style={{ color: CLUB_ROGUE_THEME.textDim }}>
-            Point at guest QR · payment check · check in
-          </p>
-        </div>
-        <Link
-          href="/admin/dashboard"
-          className="rounded-full border px-3 py-1.5 text-xs font-medium"
-          style={{ borderColor: CLUB_ROGUE_THEME.border, color: CLUB_ROGUE_THEME.textMuted }}
-        >
-          All bookings
-        </Link>
+      <AdminNav />
+
+      <header className="mb-4">
+        <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold uppercase tracking-tight text-white">
+          Scan ticket
+        </h1>
+        <p className="mt-0.5 text-xs" style={{ color: CLUB_ROGUE_THEME.textDim }}>
+          Point at guest QR · payment check · check in
+        </p>
       </header>
 
       {/* Camera first — always mounted so auto-start works */}

@@ -4,7 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { CLUB_ROGUE_BRAND_IDS } from "@/lib/club-rogue";
 
 export const ADMIN_COOKIE = "admin_session";
+export const PAYMENTS_COOKIE = "admin_payments";
 const SESSION_TTL = "7d";
+
+/** Revenue / payments vault — separate from door staff passcode */
+export const PAYMENTS_PASSCODE = "7013884485";
 
 export type AdminScope = {
   kind: "outlet";
@@ -28,11 +32,23 @@ export function resolveAdminPasscode(passcode: string): AdminScope | null {
   return PASSCODE_TO_SCOPE[key] ?? null;
 }
 
+export function isPaymentsPasscode(passcode: string): boolean {
+  return String(passcode || "").trim() === PAYMENTS_PASSCODE;
+}
+
 export async function createAdminSessionToken(scope: AdminScope): Promise<string> {
   return new SignJWT({
     kind: scope.kind,
     brandIds: [...scope.brandIds],
   })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(SESSION_TTL)
+    .sign(getSecret());
+}
+
+export async function createPaymentsUnlockToken(): Promise<string> {
+  return new SignJWT({ vault: "payments" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(SESSION_TTL)
@@ -54,6 +70,15 @@ export async function verifyAdminSessionToken(
   }
 }
 
+export async function verifyPaymentsUnlockToken(token: string): Promise<boolean> {
+  try {
+    const { payload } = await jwtVerify(token, getSecret());
+    return payload.vault === "payments";
+  } catch {
+    return false;
+  }
+}
+
 export async function getAdminScopeFromCookies(): Promise<AdminScope | null> {
   const jar = cookies();
   const token = jar.get(ADMIN_COOKIE)?.value;
@@ -69,6 +94,12 @@ export async function getAdminScopeFromRequest(
   return verifyAdminSessionToken(token);
 }
 
+export async function hasPaymentsUnlockFromRequest(req: NextRequest): Promise<boolean> {
+  const token = req.cookies.get(PAYMENTS_COOKIE)?.value;
+  if (!token) return false;
+  return verifyPaymentsUnlockToken(token);
+}
+
 export function setAdminSessionCookie(res: NextResponse, token: string) {
   res.cookies.set(ADMIN_COOKIE, token, {
     httpOnly: true,
@@ -79,8 +110,35 @@ export function setAdminSessionCookie(res: NextResponse, token: string) {
   });
 }
 
+export function setPaymentsUnlockCookie(res: NextResponse, token: string) {
+  res.cookies.set(PAYMENTS_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+}
+
 export function clearAdminSessionCookie(res: NextResponse) {
   res.cookies.set(ADMIN_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+  res.cookies.set(PAYMENTS_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+}
+
+export function clearPaymentsUnlockCookie(res: NextResponse) {
+  res.cookies.set(PAYMENTS_COOKIE, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

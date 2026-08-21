@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
+import AdminNav from "@/components/club-rogue/AdminNav";
 import { CLUB_ROGUE_OUTLETS } from "@/lib/outlets";
 import { CLUB_ROGUE_THEME } from "@/lib/club-rogue-landing";
 
@@ -26,13 +26,6 @@ type Booking = {
   createdAt: string;
 };
 
-type DayPoint = {
-  date: string;
-  label: string;
-  revenueInr: number;
-  paidCount: number;
-};
-
 type BookingsResponse = {
   bookings: Booking[];
   counts: {
@@ -40,12 +33,8 @@ type BookingsResponse = {
     awaitingPayment: number;
     paid: number;
     totalBookingsAllTime: number;
-    paidBookingsAllTime: number;
-    totalRevenueInr: number;
     todayBookings: number;
-    todayRevenueInr: number;
   };
-  revenueByDay: DayPoint[];
   refreshedAt: string;
 };
 
@@ -69,14 +58,6 @@ function formatWhen(iso: string): string {
   } catch {
     return iso;
   }
-}
-
-function formatInr(n: number): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(n);
 }
 
 function stageColor(stage: string): string {
@@ -139,32 +120,9 @@ export default function AdminDashboardPage() {
     return (brandId: string) => map[brandId] || brandId;
   }, []);
 
-  const maxRevenue = useMemo(() => {
-    const points = data?.revenueByDay ?? [];
-    return Math.max(1, ...points.map((p) => p.revenueInr));
-  }, [data?.revenueByDay]);
-
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-      <Link
-        href="/admin/scan"
-        className="mb-5 flex w-full items-center justify-between gap-3 rounded-2xl px-5 py-4 text-left shadow-lg shadow-orange-500/20"
-        style={{
-          background: `linear-gradient(135deg, ${CLUB_ROGUE_THEME.orangeLight}, ${CLUB_ROGUE_THEME.orange})`,
-        }}
-      >
-        <div>
-          <p className="font-[family-name:var(--font-display)] text-lg font-bold uppercase tracking-tight text-[#0c0604]">
-            Open QR scanner
-          </p>
-          <p className="text-xs font-medium text-[#0c0604]/90">
-            Door check-in · camera opens automatically
-          </p>
-        </div>
-        <span className="rounded-full bg-black/15 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-[#0c0604]">
-          Scan
-        </span>
-      </Link>
+      <AdminNav />
 
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -173,7 +131,7 @@ export default function AdminDashboardPage() {
           </div>
           <div>
             <h1 className="font-[family-name:var(--font-display)] text-xl font-bold uppercase tracking-tight sm:text-2xl">
-              Live bookings
+              Bookings
             </h1>
             <p className="text-xs" style={{ color: CLUB_ROGUE_THEME.textDim }}>
               {data?.refreshedAt
@@ -222,109 +180,16 @@ export default function AdminDashboardPage() {
         ))}
       </div>
 
-      {/* Overview */}
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+      <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+        <Stat label="Total bookings" value={data?.counts.totalBookingsAllTime ?? "—"} />
         <Stat
-          label="Total bookings"
-          value={data?.counts.totalBookingsAllTime ?? "—"}
-        />
-        <Stat
-          label="Total revenue"
-          value={
-            data?.counts.totalRevenueInr != null
-              ? formatInr(data.counts.totalRevenueInr)
-              : "—"
-          }
-          accent="#34d399"
-        />
-        <Stat
-          label="Today bookings"
+          label="Today"
           value={data?.counts.todayBookings ?? "—"}
           accent={CLUB_ROGUE_THEME.orangeLight}
         />
-        <Stat
-          label="Today revenue"
-          value={
-            data?.counts.todayRevenueInr != null
-              ? formatInr(data.counts.todayRevenueInr)
-              : "—"
-          }
-          accent="#34d399"
-        />
-      </div>
-
-      <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3">
-        <Stat label="In list" value={data?.counts.total ?? "—"} />
         <Stat label="At payment" value={data?.counts.awaitingPayment ?? "—"} accent="#fbbf24" />
         <Stat label="Paid (list)" value={data?.counts.paid ?? "—"} accent="#34d399" />
       </div>
-
-      {/* Payments section + graph */}
-      <section
-        id="payments"
-        className="mb-8 rounded-2xl border px-4 py-5 sm:px-5"
-        style={{ borderColor: CLUB_ROGUE_THEME.border, background: CLUB_ROGUE_THEME.surface }}
-      >
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h2 className="font-[family-name:var(--font-display)] text-lg font-bold uppercase tracking-tight text-white">
-              Payments
-            </h2>
-            <p className="mt-0.5 text-xs" style={{ color: CLUB_ROGUE_THEME.textDim }}>
-              Last 14 days · confirmation fees collected
-            </p>
-          </div>
-          <p className="text-sm font-semibold text-emerald-300">
-            {data?.counts.paidBookingsAllTime != null
-              ? `${data.counts.paidBookingsAllTime} paid · ${formatInr(data.counts.totalRevenueInr)}`
-              : "—"}
-          </p>
-        </div>
-
-        {data?.revenueByDay?.length ? (
-          <div className="mt-2">
-            <div className="flex h-40 items-end gap-1 sm:gap-1.5">
-              {data.revenueByDay.map((d) => {
-                const h = Math.max(4, Math.round((d.revenueInr / maxRevenue) * 100));
-                return (
-                  <div key={d.date} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                    <span className="text-[9px] tabular-nums text-white/50">
-                      {d.revenueInr > 0 ? `₹${Math.round(d.revenueInr)}` : ""}
-                    </span>
-                    <div
-                      className="w-full max-w-[28px] rounded-t-md transition-all"
-                      style={{
-                        height: `${h}%`,
-                        minHeight: d.revenueInr > 0 ? 8 : 4,
-                        background:
-                          d.revenueInr > 0
-                            ? `linear-gradient(180deg, ${CLUB_ROGUE_THEME.orangeLight}, ${CLUB_ROGUE_THEME.orange})`
-                            : "rgba(255,255,255,0.08)",
-                      }}
-                      title={`${d.label}: ₹${d.revenueInr} · ${d.paidCount} paid`}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mt-2 flex gap-1 sm:gap-1.5">
-              {data.revenueByDay.map((d, i) => (
-                <div
-                  key={d.date}
-                  className="min-w-0 flex-1 text-center text-[8px] uppercase tracking-wide sm:text-[9px]"
-                  style={{ color: CLUB_ROGUE_THEME.textDim }}
-                >
-                  {i % 2 === 0 || data.revenueByDay.length <= 8 ? d.label.split(" ")[0] : ""}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <p className="py-8 text-center text-sm" style={{ color: CLUB_ROGUE_THEME.textMuted }}>
-            No payment data yet for the chart.
-          </p>
-        )}
-      </section>
 
       {error ? <p className="mb-4 text-sm text-red-300">{error}</p> : null}
 
@@ -341,7 +206,7 @@ export default function AdminDashboardPage() {
           className="rounded-2xl border px-5 py-10 text-center text-sm"
           style={{ borderColor: CLUB_ROGUE_THEME.border, color: CLUB_ROGUE_THEME.textMuted }}
         >
-          No bookings yet. When someone taps pay, their name and number will land here instantly.
+          No bookings yet.
         </p>
       ) : (
         <ul className="space-y-3">
@@ -446,10 +311,7 @@ function FilterChip({
       className="rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors"
       style={
         active
-          ? {
-              background: CLUB_ROGUE_THEME.orange,
-              color: "#0c0604",
-            }
+          ? { background: CLUB_ROGUE_THEME.orange, color: "#0c0604" }
           : {
               background: CLUB_ROGUE_THEME.surface,
               color: CLUB_ROGUE_THEME.textMuted,
