@@ -31,6 +31,13 @@ function trackStage(params: {
   return params.status;
 }
 
+function ymdLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export async function GET(req: NextRequest) {
   const scope = await getAdminScopeFromRequest(req);
   if (!scope) {
@@ -43,32 +50,98 @@ export async function GET(req: NextRequest) {
   const filterBrandIds =
     outlet !== "all" && brandIds.includes(outlet) ? [outlet] : brandIds;
 
-  const reservations = await prisma.reservation.findMany({
-    where: { brandId: { in: filterBrandIds } },
-    orderBy: { createdAt: "desc" },
-    take: 200,
-    select: {
-      id: true,
-      brandId: true,
-      brandName: true,
-      fullName: true,
-      contactNumber: true,
-      numberOfMen: true,
-      numberOfWomen: true,
-      numberOfCouples: true,
-      date: true,
-      timeSlot: true,
-      notes: true,
-      confirmationCode: true,
-      checkedInAt: true,
-      status: true,
-      createdAt: true,
-      updatedAt: true,
+  const whereBrand = { brandId: { in: filterBrandIds } };
+
+  const [totalBookings, paidPayments, listReservations, chartPayments] =
+    await Promise.all([
+      prisma.reservation.count({ where: whereBrand }),
+      prisma.reservationPayment.findMany({
+        where: { brandId: { in: filterBrandIds }, status: "PAID" },
+        select: { amountPaise: true, createdAt: true, updatedAt: true },
+      }),
+      prisma.reservation.findMany({
+        where: whereBrand,
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        select: {
+          id: true,
+          brandId: true,
+          brandName: true,
+          fullName: true,
+          contactNumber: true,
+          numberOfMen: true,
+          numberOfWomen: true,
+          numberOfCouples: true,
+          date: true,
+          timeSlot: true,
+          notes: true,
+          confirmationCode: true,
+          checkedInAt: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.reservationPayment.findMany({
+        where: {
+          brandId: { in: filterBrandIds },
+          status: "PAID",
+          createdAt: {
+            gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+          },
+        },
+        select: { amountPaise: true, createdAt: true },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
+
+  const totalRevenueInr = paidPayments.reduce((sum, p) => sum + p.amountPaise, 0) / 100;
+  const paidBookings = paidPayments.length;
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const todayRevenueInr =
+    paidPayments
+      .filter((p) => p.createdAt >= startOfToday || p.updatedAt >= startOfToday)
+      .reduce((sum, p) => sum + p.amountPaise, 0) / 100;
+
+  const todayBookings = await prisma.reservation.count({
+    where: {
+      ...whereBrand,
+      createdAt: { gte: startOfToday },
     },
   });
 
-  const reservationIds = reservations.map((r) => r.id);
-  const payments =
+  // Last 14 days revenue series (fill zeros)
+  const dayKeys: string[] = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date();
+    d.setHours(12, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    dayKeys.push(ymdLocal(d));
+  }
+  const byDay = new Map(dayKeys.map((k) => [k, 0]));
+  const bookingsByDay = new Map(dayKeys.map((k) => [k, 0]));
+  for (const p of chartPayments) {
+    const key = ymdLocal(p.createdAt);
+    if (byDay.has(key)) {
+      byDay.set(key, (byDay.get(key) || 0) + p.amountPaise / 100);
+      bookingsByDay.set(key, (bookingsByDay.get(key) || 0) + 1);
+    }
+  }
+  const revenueByDay = dayKeys.map((date) => ({
+    date,
+    label: new Date(`${date}T12:00:00`).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+    }),
+    revenueInr: Math.round((byDay.get(date) || 0) * 100) / 100,
+    paidCount: bookingsByDay.get(date) || 0,
+  }));
+
+  const reservationIds = listReservations.map((r) => r.id);
+  const listPayments =
     reservationIds.length > 0
       ? await prisma.reservationPayment.findMany({
           where: { reservationId: { in: reservationIds } },
@@ -84,12 +157,12 @@ export async function GET(req: NextRequest) {
       : [];
 
   const paymentByReservation = new Map(
-    payments
+    listPayments
       .filter((p): p is typeof p & { reservationId: string } => Boolean(p.reservationId))
       .map((p) => [p.reservationId, p])
   );
 
-  const bookings = reservations.map((r) => {
+  const bookings = listReservations.map((r) => {
     const payment = paymentByReservation.get(r.id) ?? null;
     const paymentStatus = payment?.status ?? null;
     return {
@@ -114,16 +187,24 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  const counts = {
-    total: bookings.length,
-    awaitingPayment: bookings.filter((b) => b.stage === "At payment" || b.stage === "Details saved")
-      .length,
-    paid: bookings.filter((b) => b.stage === "Paid & confirmed").length,
-  };
+  const awaitingPayment = bookings.filter(
+    (b) => b.stage === "At payment" || b.stage === "Details saved"
+  ).length;
+  const paidInList = bookings.filter((b) => b.stage === "Paid & confirmed").length;
 
   return NextResponse.json({
     bookings,
-    counts,
+    counts: {
+      total: bookings.length,
+      awaitingPayment,
+      paid: paidInList,
+      totalBookingsAllTime: totalBookings,
+      paidBookingsAllTime: paidBookings,
+      totalRevenueInr: Math.round(totalRevenueInr * 100) / 100,
+      todayBookings,
+      todayRevenueInr: Math.round(todayRevenueInr * 100) / 100,
+    },
+    revenueByDay,
     refreshedAt: new Date().toISOString(),
   });
 }
