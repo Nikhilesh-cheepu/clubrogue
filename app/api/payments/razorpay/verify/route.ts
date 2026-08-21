@@ -34,6 +34,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       reservationId: result.reservationId,
+      bookingId: result.reservationId,
+      confirmationCode: result.confirmationCode,
     });
   } catch (error) {
     console.error("[razorpay verify]", error);

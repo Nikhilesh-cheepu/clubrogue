@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isClubRogueBrand } from "@/lib/club-rogue";
+import { buildClubRogueReservationNotes } from "@/lib/booking-notes";
+import { getOutletLabelForReservation } from "@/lib/brands";
 import {
   clubRogueReservationFeePaise,
+  clubRogueBookingRequiresPayment,
   getRazorpayClient,
   getRazorpayPublicKeyId,
   isRazorpayConfigured,
 } from "@/lib/razorpay";
 import { isEventSlotInPast } from "@/lib/event-booking-slots";
+import { allocateConfirmationCode } from "@/lib/confirmation-code";
 
 function normalizePhone(raw: string): string {
   const digits = String(raw || "").replace(/\D/g, "");
@@ -30,6 +34,8 @@ export async function POST(req: NextRequest) {
     const date = typeof body.date === "string" ? body.date.trim() : "";
     const timeSlot = typeof body.timeSlot === "string" ? body.timeSlot.trim() : "";
     const numberOfMen = String(body.numberOfMen ?? "1");
+    const numberOfWomen = String(body.numberOfWomen ?? "0");
+    const numberOfCouples = String(body.numberOfCouples ?? "0");
     const coverChargeAcknowledged = body.coverChargeAcknowledged === true;
 
     if (!fullName || !/^\d{10}$/.test(contactNumber) || !date || !timeSlot) {
@@ -45,7 +51,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const notesBuild = buildClubRogueReservationNotes({
+      brandId,
+      notes: body.notes,
+      eventId: body.eventId,
+      bookingNightGenre: body.bookingNightGenre,
+    });
+    if (notesBuild.error) {
+      return NextResponse.json({ error: notesBuild.error }, { status: 400 });
+    }
+
     const guests = Math.max(1, Math.min(20, parseInt(numberOfMen, 10) || 1));
+
+    const venue = await prisma.venue.findUnique({
+      where: { brandId },
+      select: { id: true, name: true, shortName: true },
+    });
+    if (!venue) {
+      return NextResponse.json({ error: "Unknown outlet" }, { status: 400 });
+    }
+
+    const brandName =
+      typeof body.brandName === "string" && body.brandName.trim()
+        ? body.brandName.trim()
+        : getOutletLabelForReservation(brandId, null, null, venue.name, venue.shortName);
 
     const bookingDraft = {
       ...body,
@@ -54,10 +83,10 @@ export async function POST(req: NextRequest) {
       date,
       timeSlot,
       numberOfMen,
-      numberOfWomen: String(body.numberOfWomen ?? "0"),
-      numberOfCouples: String(body.numberOfCouples ?? "0"),
+      numberOfWomen,
+      numberOfCouples,
       brandId,
-      brandName: typeof body.brandName === "string" ? body.brandName : brandId,
+      brandName,
       coverChargeAcknowledged: true,
       selectedDiscounts: [],
       notes:
@@ -65,6 +94,55 @@ export async function POST(req: NextRequest) {
           ? body.notes.trim()
           : "Club Rogue online reservation",
     };
+
+    const amountPaise = clubRogueReservationFeePaise(guests);
+
+    // Local / staging test path — skip Razorpay and issue a real ticket
+    if (!clubRogueBookingRequiresPayment()) {
+      const confirmationCode = await allocateConfirmationCode();
+      const reservation = await prisma.reservation.create({
+        data: {
+          venueId: venue.id,
+          brandId,
+          brandName,
+          fullName,
+          contactNumber,
+          numberOfMen,
+          numberOfWomen,
+          numberOfCouples,
+          date,
+          timeSlot,
+          notes: notesBuild.notes,
+          selectedDiscounts: null,
+          status: "CONFIRMED",
+          confirmationCode,
+        },
+        select: { id: true, confirmationCode: true },
+      });
+
+      const fakeOrderId = `test_order_${reservation.id}`;
+      await prisma.reservationPayment.create({
+        data: {
+          brandId,
+          razorpayOrderId: fakeOrderId,
+          razorpayPaymentId: `test_pay_${reservation.id}`,
+          amountPaise,
+          status: "PAID",
+          bookingDraft,
+          reservationId: reservation.id,
+        },
+      });
+
+      return NextResponse.json({
+        skipPayment: true,
+        reservationId: reservation.id,
+        bookingId: reservation.id,
+        confirmationCode: reservation.confirmationCode,
+        amountPaise,
+        amountInr: amountPaise / 100,
+        prefill: { name: fullName, contact: contactNumber },
+      });
+    }
 
     if (!isRazorpayConfigured()) {
       return NextResponse.json(
@@ -77,13 +155,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const amountPaise = clubRogueReservationFeePaise(guests);
+    // Save lead before Razorpay so admin can track name/number immediately
+    const pendingReservation = await prisma.reservation.create({
+      data: {
+        venueId: venue.id,
+        brandId,
+        brandName,
+        fullName,
+        contactNumber,
+        numberOfMen,
+        numberOfWomen,
+        numberOfCouples,
+        date,
+        timeSlot,
+        notes: notesBuild.notes,
+        selectedDiscounts: null,
+        status: "PENDING",
+      },
+      select: { id: true },
+    });
+
     const razorpay = getRazorpayClient();
     const order = await razorpay.orders.create({
       amount: amountPaise,
       currency: "INR",
       receipt: `cr_${Date.now().toString(36)}`.slice(0, 40),
-      notes: { brandId, phone: contactNumber },
+      notes: {
+        brandId,
+        phone: contactNumber,
+        reservationId: pendingReservation.id,
+      },
     });
 
     await prisma.reservationPayment.create({
@@ -93,6 +194,7 @@ export async function POST(req: NextRequest) {
         amountPaise,
         status: "CREATED",
         bookingDraft,
+        reservationId: pendingReservation.id,
       },
     });
 
@@ -103,6 +205,7 @@ export async function POST(req: NextRequest) {
       amountPaise,
       amountInr: amountPaise / 100,
       currency: "INR",
+      reservationId: pendingReservation.id,
       prefill: { name: fullName, contact: contactNumber },
     });
   } catch (error) {

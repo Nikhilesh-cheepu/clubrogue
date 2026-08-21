@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { CLUB_ROGUE_OUTLETS } from "@/lib/outlets";
-import { CLUB_ROGUE_THEME } from "@/lib/club-rogue-landing";
+import { CLUB_ROGUE_HOUSE_RULES, CLUB_ROGUE_THEME } from "@/lib/club-rogue-landing";
 
 const LOGO = "/logos/club-rogue.png";
 
@@ -93,11 +93,11 @@ export default function ClubRogueHomeLanding() {
                 Book a table
               </a>
               <a
-                href="#vibe"
+                href="#rules"
                 className="text-sm font-medium tracking-wide underline-offset-4 hover:underline"
                 style={{ color: CLUB_ROGUE_THEME.textDim }}
               >
-                See the vibe
+                House rules
               </a>
             </motion.div>
           </motion.div>
@@ -163,6 +163,66 @@ export default function ClubRogueHomeLanding() {
                 </div>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* RULES + VIBE copy */}
+      <section
+        id="rules"
+        className="border-t"
+        style={{ borderColor: CLUB_ROGUE_THEME.borderSubtle }}
+      >
+        <div className="mx-auto max-w-3xl px-5 py-16 sm:px-8 sm:py-20">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.6 }}
+            className="mb-10 text-center"
+          >
+            <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold uppercase tracking-tight text-white sm:text-3xl">
+              The Rogue code
+            </h2>
+            <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: CLUB_ROGUE_THEME.textMuted }}>
+              How the night works — cover, dress, age, and the energy you walk into.
+            </p>
+          </motion.div>
+
+          <ul className="space-y-6">
+            {CLUB_ROGUE_HOUSE_RULES.map((rule, i) => (
+              <motion.li
+                key={rule.title}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-40px" }}
+                transition={{ duration: 0.45, delay: i * 0.05 }}
+                className="border-b pb-6 last:border-0"
+                style={{ borderColor: CLUB_ROGUE_THEME.borderSubtle }}
+              >
+                <p
+                  className="text-[11px] font-semibold uppercase tracking-[0.28em]"
+                  style={{ color: CLUB_ROGUE_THEME.orangeLight }}
+                >
+                  {rule.title}
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-white/85 sm:text-[15px]">
+                  {rule.body}
+                </p>
+              </motion.li>
+            ))}
+          </ul>
+
+          <div className="mt-10 flex justify-center">
+            <a
+              href="#book"
+              className="inline-flex items-center justify-center rounded-full px-8 py-3.5 text-sm font-semibold text-[#0c0604]"
+              style={{
+                background: `linear-gradient(135deg, ${CLUB_ROGUE_THEME.orangeLight}, ${CLUB_ROGUE_THEME.orange})`,
+              }}
+            >
+              Book a table
+            </a>
           </div>
         </div>
       </section>

@@ -34,6 +34,7 @@ import { useRazorpayCheckout } from "@/lib/use-razorpay-checkout";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import { blurActiveField, resetIosInputZoom } from "@/lib/reset-mobile-zoom";
 import type { VenuePayload } from "@/lib/venue-data";
+import BookingTicket, { type BookingTicketInfo } from "@/components/club-rogue/BookingTicket";
 
 const GalleryModal = dynamic(() => import("@/components/GalleryModal"));
 
@@ -116,6 +117,7 @@ export default function ClubRogueOutletPage({
   const [error, setError] = useState<string | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [ticket, setTicket] = useState<BookingTicketInfo | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [paymentConfigured, setPaymentConfigured] = useState<boolean | null>(null);
@@ -308,12 +310,44 @@ export default function ClubRogueOutletPage({
     let pollId: number | null = null;
     let confirmed = false;
 
-    const markConfirmed = () => {
+    const markConfirmed = (info?: { reservationId?: string | null; confirmationCode?: string | null }) => {
       if (confirmed) return;
       confirmed = true;
       if (pollId != null) window.clearInterval(pollId);
       setConfirmOpen(false);
-      setSuccess(true);
+      const bookingId = typeof info?.reservationId === "string" ? info.reservationId : null;
+      const confirmationCode =
+        typeof info?.confirmationCode === "string" ? info.confirmationCode : null;
+      const bookedPhone = phone;
+      const bookedGuests = people;
+      if (bookingId && confirmationCode) {
+        setTicket({
+          bookingId,
+          confirmationCode,
+          contactNumber: bookedPhone,
+          guests: bookedGuests,
+          venueName,
+        });
+        setSuccess(true);
+      } else if (bookingId) {
+        void fetch(`/api/bookings/${bookingId}/ticket`)
+          .then((r) => r.json())
+          .then((data) => {
+            if (data?.confirmationCode && data?.bookingId) {
+              setTicket({
+                bookingId: data.bookingId,
+                confirmationCode: data.confirmationCode,
+                contactNumber: data.contactNumber || bookedPhone,
+                guests: bookedGuests,
+                venueName: data.venueName || venueName,
+              });
+            }
+            setSuccess(true);
+          })
+          .catch(() => setSuccess(true));
+      } else {
+        setSuccess(true);
+      }
       resetForm();
     };
 
@@ -326,7 +360,10 @@ export default function ClubRogueOutletPage({
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.success) {
-          markConfirmed();
+          markConfirmed({
+            reservationId: data.reservationId ?? data.bookingId,
+            confirmationCode: data.confirmationCode,
+          });
           return true;
         }
       } catch {
@@ -343,6 +380,15 @@ export default function ClubRogueOutletPage({
       });
       const orderData = await orderRes.json().catch(() => ({}));
       if (!orderRes.ok) throw new Error(orderData.error || "Could not start payment");
+
+      // Dev / allow-without-payment: ticket issued immediately
+      if (orderData.skipPayment === true) {
+        markConfirmed({
+          reservationId: orderData.reservationId ?? orderData.bookingId,
+          confirmationCode: orderData.confirmationCode,
+        });
+        return;
+      }
 
       activeOrderId = typeof orderData.orderId === "string" ? orderData.orderId : null;
       if (!activeOrderId) throw new Error("Could not start payment");
@@ -382,7 +428,10 @@ export default function ClubRogueOutletPage({
             if (activeOrderId && (await tryConfirmOrder(activeOrderId))) return;
             throw new Error(verifyData.error || "Payment verification failed");
           }
-          markConfirmed();
+          markConfirmed({
+            reservationId: verifyData.reservationId ?? verifyData.bookingId,
+            confirmationCode: verifyData.confirmationCode,
+          });
         }
       );
     } catch (e) {
@@ -403,7 +452,7 @@ export default function ClubRogueOutletPage({
         }
         if (!confirmed) {
           setConfirmError(
-            "Payment may still be processing. If you were charged, WhatsApp us with your number — we will confirm your table."
+            "Payment may still be processing. If you were charged, wait a minute and check back — or contact the club with your number."
           );
         }
       }
@@ -496,7 +545,15 @@ export default function ClubRogueOutletPage({
 
         {/* Form */}
         <section id="book" className="mt-8">
-          {success ? (
+          {success && ticket ? (
+            <BookingTicket
+              ticket={ticket}
+              onBookAnother={() => {
+                setSuccess(false);
+                setTicket(null);
+              }}
+            />
+          ) : success ? (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -511,10 +568,7 @@ export default function ClubRogueOutletPage({
               </div>
               <p className="text-xl font-semibold text-white">You&apos;re in</p>
               <p className="mt-1.5 text-sm" style={{ color: CLUB_ROGUE_THEME.textMuted }}>
-                Payment received — WhatsApp confirmation on the way
-              </p>
-              <p className="mt-3 text-xs leading-relaxed" style={{ color: CLUB_ROGUE_THEME.textDim }}>
-                ₹2,000 cover per person at entry · redeemable on F&amp;B
+                Payment received — your table is confirmed
               </p>
               <button
                 type="button"

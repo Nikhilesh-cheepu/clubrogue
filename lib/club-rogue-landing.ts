@@ -76,3 +76,31 @@ export function getClubRogueHooks(brandId: string): string[] {
   const landing = getClubRogueLanding(brandId);
   return [...CLUB_ROGUE_EMOTIONAL_HOOKS, ...landing.extraHooks];
 }
+
+/** House rules + vibe bullets for the home landing. */
+export const CLUB_ROGUE_HOUSE_RULES = [
+  {
+    title: "Age 21+",
+    body: "Valid government ID required at the door. No exceptions.",
+  },
+  {
+    title: "Dress code",
+    body: "Smart casual and upwards. No shorts, slippers, or sportswear after dark.",
+  },
+  {
+    title: "₹2,000 cover",
+    body: "Paid at entry per person — fully redeemable on food and drinks. Not charged online.",
+  },
+  {
+    title: "Table first",
+    body: "Busy nights fill fast. Book your table online so the door knows you’re coming.",
+  },
+  {
+    title: "Respect the floor",
+    body: "No fights, no hassling guests, no outside food or drink. Staff calls stand.",
+  },
+  {
+    title: "The vibe",
+    body: "Bass-heavy nights, packed dance floors, Tollywood & Bollywood energy across three Hyderabad locations.",
+  },
+] as const;

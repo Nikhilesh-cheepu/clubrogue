@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getOutletLabelForReservation } from "@/lib/brands";
 import {
-  CLUB_ROGUE_GACHIBOWLI_ID,
   CLUB_ROGUE_RESERVATION_FEE_INR,
   clubRogueNightGenreLabel,
   isClubRogueBrand,
-  resolveClubRogueNightGenre,
 } from "@/lib/club-rogue";
+import { buildClubRogueReservationNotes } from "@/lib/booking-notes";
+import {
+  allocateConfirmationCode,
+  clubRogueWhatsAppEnabled,
+} from "@/lib/confirmation-code";
 import { localYmdTimeMs } from "@/lib/local-date";
 import { clubRogueBookingRequiresPayment } from "@/lib/razorpay";
 
@@ -87,7 +90,6 @@ export async function POST(request: NextRequest) {
       notes,
       selectedDiscounts,
       eventId,
-      eventName,
       brandId,
       brandName,
       coverChargeAcknowledged,
@@ -131,6 +133,13 @@ export async function POST(request: NextRequest) {
         ? body.clubRoguePaymentOrderId.trim()
         : "";
 
+    let paidPayment: {
+      id: string;
+      reservationId: string | null;
+      brandId: string;
+      status: string;
+    } | null = null;
+
     if (isClubRogueBrand(String(brandId))) {
       if (clubRogueBookingRequiresPayment()) {
         if (!clubRoguePaymentOrderId) {
@@ -142,10 +151,11 @@ export async function POST(request: NextRequest) {
             { status: 402 }
           );
         }
-        const paid = await prisma.reservationPayment.findUnique({
+        paidPayment = await prisma.reservationPayment.findUnique({
           where: { razorpayOrderId: clubRoguePaymentOrderId },
+          select: { id: true, reservationId: true, brandId: true, status: true },
         });
-        if (!paid || paid.status !== "PAID" || paid.brandId !== brandId) {
+        if (!paidPayment || paidPayment.status !== "PAID" || paidPayment.brandId !== brandId) {
           return NextResponse.json(
             {
               error: "Payment not verified. Please complete payment and try again.",
@@ -154,55 +164,25 @@ export async function POST(request: NextRequest) {
             { status: 402 }
           );
         }
-        if (paid.reservationId) {
-          return NextResponse.json({
-            success: true,
-            message: "Reservation already confirmed",
-            reservationId: paid.reservationId,
+        if (paidPayment.reservationId) {
+          const linked = await prisma.reservation.findUnique({
+            where: { id: paidPayment.reservationId },
+            select: { id: true, status: true, confirmationCode: true },
           });
+          if (linked?.status === "CONFIRMED") {
+            return NextResponse.json({
+              success: true,
+              message: "Reservation already confirmed",
+              reservationId: linked.id,
+              confirmationCode: linked.confirmationCode,
+              bookingId: linked.id,
+            });
+          }
         }
       }
     }
 
-    const userNotesTrimmed =
-      notes && String(notes).trim() ? String(notes).trim() : "";
-
-    let notesSectionFromUser = "";
-    if (userNotesTrimmed) {
-      const notesLower = userNotesTrimmed.toLowerCase();
-      if (notesLower.includes("birthday") || notesLower.includes("bday")) {
-        notesSectionFromUser = "Birthday";
-      } else if (notesLower.includes("anniversary")) {
-        notesSectionFromUser = "Anniversary";
-      } else if (notesLower.includes("celebration")) {
-        notesSectionFromUser = "Celebration";
-      } else {
-        notesSectionFromUser = userNotesTrimmed;
-      }
-    }
-
-    const formatTime = (time24: string): string => {
-      if (!time24) return "";
-      const [hours, minutes] = time24.split(":").map(Number);
-      const period = hours >= 12 ? "PM" : "AM";
-      const hours12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-      return `${hours12}:${minutes.toString().padStart(2, "0")} ${period}`;
-    };
-
-    const formatDateShort = (dateStr: string): string => {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-    };
-
     const timeToFormat = timeSlot || time;
-    const totalGuests =
-      parseInt(numberOfMen) + parseInt(numberOfWomen) + parseInt(numberOfCouples) * 2;
-    const dateShort = formatDateShort(date);
-    const timeLabel = timeToFormat ? formatTime(timeToFormat) : "";
 
     const venue = await prisma.venue.findUnique({
       where: { brandId },
@@ -225,17 +205,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    let nightGenre: "tollywood" | "bollywood" | null = null;
-    if (isClubRogueBrand(brandId)) {
-      nightGenre = resolveClubRogueNightGenre(brandId, bookingNightGenre);
-      if (brandId === CLUB_ROGUE_GACHIBOWLI_ID && !nightGenre) {
-        return NextResponse.json(
-          { error: "Please select Tollywood night or Bollywood night." },
-          { status: 400 }
-        );
-      }
-      if (!nightGenre) nightGenre = "tollywood";
+    const notesBuild = buildClubRogueReservationNotes({
+      brandId,
+      notes,
+      eventId,
+      bookingNightGenre,
+    });
+    if (notesBuild.error) {
+      return NextResponse.json({ error: notesBuild.error }, { status: 400 });
     }
+    const nightGenre = notesBuild.nightGenre;
+    const notesNormalized = notesBuild.notes;
 
     const outletDisplayName = getOutletLabelForReservation(
       brandId,
@@ -247,8 +227,6 @@ export async function POST(request: NextRequest) {
     const outletNameForTemplate = outletDisplayName;
     const brandLabelForBooking = outletDisplayName;
 
-    const offerText = "NA";
-
     const timeSlotNormalized = String(timeToFormat);
     const menNormalized = String(numberOfMen);
     const womenNormalized = String(numberOfWomen);
@@ -256,28 +234,6 @@ export async function POST(request: NextRequest) {
     const eventIdNormalized =
       typeof eventId === "string" && eventId.trim() ? eventId.trim() : null;
     const isEventBooking = Boolean(eventIdNormalized);
-    const dbNotesParts: string[] = [];
-    if (isClubRogueBrand(brandId) && nightGenre) {
-      dbNotesParts.push(clubRogueNightGenreLabel(nightGenre));
-    }
-    if (userNotesTrimmed) dbNotesParts.push(userNotesTrimmed);
-    const notesNormalized =
-      [
-        dbNotesParts.length > 0 ? dbNotesParts.join("\n") : "",
-        eventIdNormalized ? `[event:${eventIdNormalized}]` : "",
-      ]
-        .filter(Boolean)
-        .join("\n")
-        .trim() || null;
-
-    let eventNameForTemplate = "Event";
-    let eventDateForTemplate = dateShort;
-    if (typeof eventName === "string" && eventName.trim()) {
-      eventNameForTemplate = eventName.trim();
-    }
-    if (eventIdNormalized && date) {
-      eventDateForTemplate = formatDateShort(String(date));
-    }
 
     const selectedDiscountsNormalized =
       Array.isArray(selectedDiscounts) && selectedDiscounts.length > 0
@@ -289,29 +245,78 @@ export async function POST(request: NextRequest) {
           )
         : null;
 
-    const recently = new Date(Date.now() - 30 * 1000);
-    const existingReservation = await prisma.reservation.findFirst({
-      where: {
-        brandId,
-        date,
-        timeSlot: timeSlotNormalized,
-        contactNumber,
-        fullName: normalizedFullName,
-        numberOfMen: menNormalized,
-        numberOfWomen: womenNormalized,
-        numberOfCouples: couplesNormalized,
-        notes: notesNormalized,
-        selectedDiscounts: selectedDiscountsNormalized,
-        status: "CONFIRMED",
-        createdAt: { gte: recently },
-      },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, createdAt: true },
-    });
+    // Prefer confirming the PENDING row created at create-order time
+    let reservationId: string | null = null;
+    let shouldTriggerInterakt = true;
 
-    const createdReservation = existingReservation
-      ? null
-      : await prisma.reservation.create({
+    if (paidPayment?.reservationId) {
+      const pending = await prisma.reservation.findUnique({
+        where: { id: paidPayment.reservationId },
+        select: { id: true, status: true },
+      });
+      if (pending) {
+        if (pending.status === "CONFIRMED") {
+          const existing = await prisma.reservation.findUnique({
+            where: { id: pending.id },
+            select: { id: true, confirmationCode: true },
+          });
+          return NextResponse.json({
+            success: true,
+            message: "Reservation already confirmed",
+            reservationId: pending.id,
+            confirmationCode: existing?.confirmationCode ?? null,
+            bookingId: pending.id,
+          });
+        }
+        const confirmationCode = await allocateConfirmationCode();
+        await prisma.reservation.update({
+          where: { id: pending.id },
+          data: {
+            fullName: normalizedFullName,
+            contactNumber,
+            numberOfMen: menNormalized,
+            numberOfWomen: womenNormalized,
+            numberOfCouples: couplesNormalized,
+            date,
+            timeSlot: timeSlotNormalized,
+            notes: notesNormalized,
+            selectedDiscounts: selectedDiscountsNormalized,
+            brandName: brandLabelForBooking,
+            status: "CONFIRMED",
+            confirmationCode,
+          },
+        });
+        reservationId = pending.id;
+      }
+    }
+
+    if (!reservationId) {
+      const recently = new Date(Date.now() - 30 * 1000);
+      const existingReservation = await prisma.reservation.findFirst({
+        where: {
+          brandId,
+          date,
+          timeSlot: timeSlotNormalized,
+          contactNumber,
+          fullName: normalizedFullName,
+          numberOfMen: menNormalized,
+          numberOfWomen: womenNormalized,
+          numberOfCouples: couplesNormalized,
+          notes: notesNormalized,
+          selectedDiscounts: selectedDiscountsNormalized,
+          status: "CONFIRMED",
+          createdAt: { gte: recently },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, createdAt: true, confirmationCode: true },
+      });
+
+      if (existingReservation) {
+        reservationId = existingReservation.id;
+        shouldTriggerInterakt = false;
+      } else {
+        const confirmationCode = await allocateConfirmationCode();
+        const createdReservation = await prisma.reservation.create({
           data: {
             venueId: venue.id,
             brandId,
@@ -326,10 +331,14 @@ export async function POST(request: NextRequest) {
             notes: notesNormalized,
             selectedDiscounts: selectedDiscountsNormalized,
             status: "CONFIRMED",
+            confirmationCode,
           },
           select: { id: true },
         });
-    const reservationId = existingReservation?.id ?? createdReservation?.id;
+        reservationId = createdReservation.id;
+      }
+    }
+
     if (!reservationId) {
       return NextResponse.json(
         { error: "Failed to create reservation. Please try again." },
@@ -337,14 +346,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (clubRoguePaymentOrderId && !existingReservation) {
+    if (clubRoguePaymentOrderId) {
       await prisma.reservationPayment.updateMany({
-        where: { razorpayOrderId: clubRoguePaymentOrderId, reservationId: null },
+        where: { razorpayOrderId: clubRoguePaymentOrderId },
         data: { reservationId },
       });
     }
 
-    const shouldTriggerInterakt = !existingReservation;
+    // Ensure every confirmed booking has a door code (legacy / race paths)
+    let ticket = await prisma.reservation.findUnique({
+      where: { id: reservationId },
+      select: { id: true, confirmationCode: true },
+    });
+    if (ticket && !ticket.confirmationCode) {
+      const confirmationCode = await allocateConfirmationCode();
+      ticket = await prisma.reservation.update({
+        where: { id: reservationId },
+        data: { confirmationCode },
+        select: { id: true, confirmationCode: true },
+      });
+    }
 
     const interaktApiKey = process.env.INTERAKT_API_KEY?.trim();
     const defaultTemplateName =
@@ -369,13 +390,13 @@ export async function POST(request: NextRequest) {
     const staffLanguageCode =
       process.env.INTERAKT_STAFF_BOOKING_TEMPLATE_LANGUAGE_CODE?.trim() || interaktLanguageCode;
 
+    // WhatsApp off by default for now — ticket + QR is the confirmation path
     if (!shouldTriggerInterakt) {
       console.log("[RESERVATION API] Duplicate booking detected; skipping WhatsApp trigger.");
+    } else if (!clubRogueWhatsAppEnabled()) {
+      console.log("[RESERVATION API] WhatsApp confirmation disabled (CLUB_ROGUE_SEND_WHATSAPP!=true).");
     } else if (!interaktApiKey) {
-      return NextResponse.json(
-        { error: "WhatsApp service is not configured. Please try again shortly." },
-        { status: 503 }
-      );
+      console.warn("[RESERVATION API] WhatsApp enabled but INTERAKT_API_KEY missing; continuing with ticket.");
     } else {
       // Template: {{1}} name, {{2}} outlet, {{3}} mobile, {{4}} night
       const bodyValues = [
@@ -395,13 +416,12 @@ export async function POST(request: NextRequest) {
       });
 
       if (!customerSend.ok) {
-        return NextResponse.json(
-          { error: "Unable to send WhatsApp confirmation. Please try again." },
-          { status: 502 }
+        console.error(
+          "[INTERAKT booking-customer] Failed after payment; ticket still issued:",
+          customerSend.status,
+          customerSend.text?.slice?.(0, 500)
         );
-      }
-
-      if (staffNotifyEnabled) {
+      } else if (staffNotifyEnabled) {
         const staffSend = await sendInteraktTemplateMessage({
           apiKey: interaktApiKey,
           phoneNumber10: staffNotifyPhone10,
@@ -427,6 +447,8 @@ export async function POST(request: NextRequest) {
         success: true,
         message: "Reservation submitted successfully",
         reservationId,
+        bookingId: reservationId,
+        confirmationCode: ticket?.confirmationCode ?? null,
       },
       { status: 200 }
     );

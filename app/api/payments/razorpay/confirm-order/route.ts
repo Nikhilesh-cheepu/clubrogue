@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 /**
  * Reconcile an order after UPI/QR pay when Checkout.js handler may not fire.
- * Looks up Razorpay for a captured payment, then fulfills reservation + Interakt.
+ * Looks up Razorpay for a captured payment, then fulfills reservation.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -29,12 +29,20 @@ export async function POST(req: NextRequest) {
     }
 
     if (record.status === "PAID" && record.reservationId) {
-      return NextResponse.json({
-        success: true,
-        status: "confirmed",
-        reservationId: record.reservationId,
-        alreadyFulfilled: true,
+      const linked = await prisma.reservation.findUnique({
+        where: { id: record.reservationId },
+        select: { id: true, status: true, confirmationCode: true },
       });
+      if (linked?.status === "CONFIRMED") {
+        return NextResponse.json({
+          success: true,
+          status: "confirmed",
+          reservationId: linked.id,
+          bookingId: linked.id,
+          confirmationCode: linked.confirmationCode,
+          alreadyFulfilled: true,
+        });
+      }
     }
 
     const razorpay = getRazorpayClient();
@@ -70,6 +78,8 @@ export async function POST(req: NextRequest) {
       success: true,
       status: "confirmed",
       reservationId: result.reservationId,
+      bookingId: result.reservationId,
+      confirmationCode: result.confirmationCode,
       alreadyFulfilled: result.alreadyFulfilled ?? false,
     });
   } catch (error) {
